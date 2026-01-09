@@ -1,0 +1,41 @@
+{
+  "name": "shopify-mobile-commerce-platform",
+  "version": "1.0.0",
+  "description": "Complete Shopify mobile commerce platform with app, template, and SDK",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:shopify-app": "npm run dev --workspace=packages/shopify-app",
+    "dev:mobile-app": "npm run start --workspace=packages/mobile-app-template",
+    "build:all": "npm run build --workspaces",
+    "lint:all": "npm run lint --workspaces",
+    "test:all": "npm run test --workspaces",
+    "clean": "npm run clean --workspaces && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.8",
+    "typescript": "^5.9.3",
+    "prettier": "^3.6.2",
+    "eslint": "^8.57.1"
+  },
+  "engines": {
+    "node": ">=20.19.0",
+    "npm": ">=10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/shopify-mobile-commerce-platform"
+  },
+  "keywords": [
+    "shopify",
+    "mobile",
+    "commerce",
+    "react-native",
+    "expo",
+    "monorepo"
+  ],
+  "author": "Your Organization",
+  "license": "MIT"
+}

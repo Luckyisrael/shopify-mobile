@@ -1,0 +1,217 @@
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+build/
+dist/
+*/build/
+*/dist/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Yarn cache and install state
+.yarn/cache/
+.yarn/install-state.gz
+packages/*/.yarn/cache/
+packages/*/.yarn/install-state.gz
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# Shopify CLI
+.shopify/
+packages/*/.shopify/
+
+# Database
+*.db
+*.sqlite
+dev.sqlite
+packages/*/dev.sqlite
+packages/*/prisma/*.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Expo
+.expo/
+web-build/
+packages/mobile-app-template/.expo/
+packages/*/web-build/
+
+# React Native
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/captures/
+android/gradlew.bat
+android/local.properties
+android/keystore.properties
+packages/*/android/app/build/
+packages/*/android/build/
+packages/*/android/.gradle/
+
+# iOS
+ios/build/
+ios/Pods/
+ios/*.xcworkspace
+ios/*.xcuserdata
+packages/*/ios/build/
+packages/*/ios/Pods/
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+nul
+
+# Package manager locks (keep only root)
+packages/*/package-lock.json
+packages/*/yarn.lock
+
+# TypeScript
+*.tsbuildinfo
+
+# Prisma
+packages/*/prisma/migrations/
+packages/*/prisma/dev.db*
+
+# React Router
+packages/*/.react-router/
+
+# Build artifacts
+packages/*/dist/
+packages/*/build/
+
+# Test coverage
+packages/*/coverage/
+
+# Monorepo specific
+lerna-debug.log*
+.rush/
+
+# Firebase credentials
+*firebase*.json
+*service-account*.json
+*credentials*.json
+
+# Android specific files that shouldn't be tracked
+packages/*/android/app/debug.keystore
+packages/*/android/app/google-services.json
+packages/*/android/app/build/
+packages/*/android/build/
+packages/*/android/.gradle/
+packages/*/android/local.properties
+packages/*/android/keystore.properties
+
+# IDE and editor specific folders
+packages/*/.cursor/
+packages/*/.gemini/
+packages/*/.vscode/
+packages/*/.idea/
+
+# Development and build artifacts
+packages/*/prisma/dev.sqlite
+packages/*/prisma/dev.db
+packages/*/prisma/migrations/
+packages/*/.react-router/
+packages/*/.shopify/
+
+# OS specific files
+packages/*/.DS_Store
+packages/*/nul
+
+# Large binary files and caches
+packages/*/android/gradle/wrapper/gradle-wrapper.jar

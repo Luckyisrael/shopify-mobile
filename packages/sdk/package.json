@@ -1,0 +1,42 @@
+{
+  "name": "@shopify-mobile-platform/sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for Shopify Mobile Commerce Platform",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "jest"
+  },
+  "keywords": [
+    "shopify",
+    "mobile",
+    "commerce",
+    "sdk",
+    "typescript"
+  ],
+  "author": "Your Organization",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^22.18.8",
+    "typescript": "^5.9.3",
+    "eslint": "^8.57.1",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.12"
+  },
+  "dependencies": {
+    "axios": "^1.7.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

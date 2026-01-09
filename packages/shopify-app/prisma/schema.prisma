@@ -1,0 +1,202 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+datasource db {
+  provider = "sqlite"
+  url      = "file:dev.sqlite"
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model Merchant {
+  id              String   @id @default(uuid())
+  shop            String   @unique
+  accessToken     String?
+  storefrontToken String?
+  installedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  mobileApps      MobileApp[]
+  pushTokens      PushToken[]
+  eventLogs       EventLog[]
+  featureFlags    FeatureFlags?
+  jobs            Job[]
+  subscription    Subscription?
+  usageLogs       UsageLog[]
+  customers       CustomerProfile[]
+  customerSessions CustomerSession[]
+  automationRules AutomationRule[]
+  automationJobs  AutomationJob[]
+}
+
+model CustomerProfile {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifyCustomerId String
+  email             String
+  firstName         String?
+  lastName          String?
+  lastSeenAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([merchantId, shopifyCustomerId])
+  @@unique([merchantId, email])
+}
+
+model CustomerSession {
+  id                  String   @id @default(uuid())
+  merchantId          String
+  merchant            Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifyCustomerId   String
+  customerAccessToken String
+  expiresAt           DateTime
+  createdAt           DateTime @default(now())
+}
+
+model Subscription {
+  id                    String   @id @default(uuid())
+  merchantId            String   @unique
+  merchant              Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifySubscriptionId String?
+  plan                  String   @default("FREE")
+  status                String   @default("ACTIVE")
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model PushToken {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifyCustomerId String?
+  platform          String
+  token             String
+  lastActiveAt      DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt @default(now())
+
+  @@unique([merchantId, token])
+}
+
+model EventLog {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  type              String   // CART_ABANDONED, CART_UPDATED, ORDER_CREATED, ORDER_FULFILLED, PUSH_REQUESTED
+  shopifyCustomerId String?  // Customer-aware events
+  payload           String   // Stored as JSON string
+  createdAt         DateTime @default(now())
+}
+
+model AutomationRule {
+  id          String   @id @default(uuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  type        String   // CART_RECOVERY, SCHEDULED_PUSH, EVENT_PUSH
+  status      String   @default("ACTIVE") // ACTIVE, PAUSED
+  config      String   // JSON configuration
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  automationJobs AutomationJob[]
+}
+
+model AutomationJob {
+  id                String         @id @default(uuid())
+  merchantId        String
+  merchant          Merchant       @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  ruleId            String
+  rule              AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  shopifyCustomerId String?        // Customer-aware jobs
+  cartId            String?        // Cart context
+  status            String         @default("QUEUED") // QUEUED, RUNNING, COMPLETED, FAILED
+  scheduledFor      DateTime
+  executedAt        DateTime?
+  result            String?        // JSON result
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model UsageLog {
+  id         String   @id @default(uuid())
+  merchantId String
+  merchant   Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  feature    String   // PUSH, SCHEDULED_PUSH, CART_RECOVERY
+  timestamp  DateTime @default(now())
+}
+
+model FeatureFlags {
+  id                       String   @id @default(uuid())
+  merchantId               String   @unique
+  merchant                 Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Capacity Limits
+  maxPushCampaignsPerMonth Int      @default(20)
+  maxScheduledCampaigns    Int      @default(2)
+  maxCartRecoveriesPerDay  Int      @default(5)
+  
+  // Toggles
+  schedulingEnabled        Boolean  @default(true)
+  cartRecoveryEnabled      Boolean  @default(true)
+  
+  // Advanced
+  priorityJobs             Boolean  @default(false)
+  aiFeaturesEnabled        Boolean  @default(false)
+
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+}
+
+model Job {
+  id          String   @id @default(uuid())
+  merchantId  String
+  merchant    Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  type        String // 'RECOVERY_PUSH', 'SCHEDULED_CAMPAIGN'
+  payload     String // Stored as JSON string
+  status      String   @default("PENDING") // 'PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED'
+  scheduledAt DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MobileApp {
+  id           String   @id @default(uuid())
+  merchantId   String
+  merchant     Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  appName      String
+  primaryColor String
+  logoUrl      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
