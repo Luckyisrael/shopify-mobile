@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs } from "react-router";
-import { requireMerchant, mobileJson, handleMobileError, MobileAuthError } from "../../services/mobile.server";
-import { loginCustomer } from "../../services/customer.server";
+import { requireMerchant, mobileJson, handleMobileError, MobileAuthError } from "app/services/mobile.server";
+import { loginCustomer } from "app/services/customer.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     if (request.method !== "POST") {

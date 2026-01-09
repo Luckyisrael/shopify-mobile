@@ -24,21 +24,11 @@ api_version = "2026-01"
   topics = [ "app_subscriptions/update" ]
   uri = "/webhooks/app/subscription_update"
 
-  [[webhooks.subscriptions]]
-  topics = [ "carts/update" ]
-  uri = "/webhooks/carts/update"
 
-  [[webhooks.subscriptions]]
-  topics = [ "orders/create" ]
-  uri = "/webhooks/orders/create"
-
-  [[webhooks.subscriptions]]
-  topics = [ "orders/fulfilled" ]
-  uri = "/webhooks/orders/fulfilled"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_products,read_customers,read_orders,write_checkouts"
+scopes = "read_products,write_checkouts"
 
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
