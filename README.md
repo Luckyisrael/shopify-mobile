@@ -66,23 +66,8 @@ TypeScript SDK for easy integration with the Shopify app APIs:
 
 ## 🎯 Features Completed
 
-### ✅ Phase 3: Customer Identity & Session Layer
-- Shopify-native customer authentication
-- Session management with refresh tokens
-- Push token linking to customers
-- Cart persistence across devices
-
-### ✅ Phase 6: Event-Driven Automation
-- Customer-aware cart recovery
-- Scheduled push campaigns
-- Priority job queues (Free/Pro/Enterprise)
-- Usage tracking and billing integration
-- Shopify webhook integration
-
 ## 📚 Documentation
 
-- [Phase 3 Completion](./docs/PHASE3_COMPLETION.md) - Customer identity implementation
-- [Phase 6 Completion](./docs/PHASE6_COMPLETION.md) - Automation system implementation
 - [API Documentation](./packages/shopify-app/README.md) - Shopify app API reference
 - [Mobile Template Guide](./packages/mobile-app-template/README.md) - Mobile app setup
 - [SDK Documentation](./packages/sdk/README.md) - SDK usage guide
