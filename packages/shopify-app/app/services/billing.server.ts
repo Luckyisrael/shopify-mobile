@@ -14,6 +14,7 @@ export const PLAN_CONFIGS = {
             maxPushCampaignsPerMonth: 20,
             maxScheduledCampaigns: 2,
             maxCartRecoveriesPerDay: 5,
+            maxProductHighlights: 20,
             schedulingEnabled: true,
             cartRecoveryEnabled: true,
             priorityJobs: false,
@@ -29,6 +30,7 @@ export const PLAN_CONFIGS = {
             maxPushCampaignsPerMonth: 200,
             maxScheduledCampaigns: 20,
             maxCartRecoveriesPerDay: 50,
+            maxProductHighlights: 100,
             schedulingEnabled: true,
             cartRecoveryEnabled: true,
             priorityJobs: true,
@@ -44,6 +46,7 @@ export const PLAN_CONFIGS = {
             maxPushCampaignsPerMonth: 999999, // Infinity-ish
             maxScheduledCampaigns: 999999,
             maxCartRecoveriesPerDay: 999999,
+            maxProductHighlights: 999999,
             schedulingEnabled: true,
             cartRecoveryEnabled: true,
             priorityJobs: true,
@@ -60,12 +63,26 @@ export const syncFeatureFlags = async (merchantId: string, plan: string) => {
 
     await db.featureFlags.upsert({
         where: { merchantId },
+        update: {
+            maxPushCampaignsPerMonth: config.features.maxPushCampaignsPerMonth,
+            maxScheduledCampaigns: config.features.maxScheduledCampaigns,
+            maxCartRecoveriesPerDay: config.features.maxCartRecoveriesPerDay,
+            maxProductHighlights: config.features.maxProductHighlights,
+            schedulingEnabled: config.features.schedulingEnabled,
+            cartRecoveryEnabled: config.features.cartRecoveryEnabled,
+            priorityJobs: config.features.priorityJobs,
+            aiFeaturesEnabled: config.features.aiFeaturesEnabled,
+        },
         create: {
             merchantId,
-            ...config.features,
-        },
-        update: {
-            ...config.features,
+            maxPushCampaignsPerMonth: config.features.maxPushCampaignsPerMonth,
+            maxScheduledCampaigns: config.features.maxScheduledCampaigns,
+            maxCartRecoveriesPerDay: config.features.maxCartRecoveriesPerDay,
+            maxProductHighlights: config.features.maxProductHighlights,
+            schedulingEnabled: config.features.schedulingEnabled,
+            cartRecoveryEnabled: config.features.cartRecoveryEnabled,
+            priorityJobs: config.features.priorityJobs,
+            aiFeaturesEnabled: config.features.aiFeaturesEnabled,
         },
     });
 };
@@ -91,79 +108,109 @@ export const updateSubscription = async (merchantId: string, shopifySubscription
     });
 
     // 2. Sync Feature Flags
-    // Only sync flags if active, otherwise downgrade to FREE or handle cancellation?
-    // Phase 5 says: "On webhook: Update Subscription status, Re-sync FeatureFlags"
-    // Ideally if cancelled, we might downgrade to FREE limits but keep status as CANCELLED or similar.
-    // For simplicity, if status is ACTIVE, we use the plan. If not, we default to FREE features.
-
     const effectivePlan = status === "ACTIVE" ? plan : PLANS.FREE;
     await syncFeatureFlags(merchantId, effectivePlan);
 };
 
 /**
- * Checks usage limits against feature flags.
- * Throws error if limit reached.
+ * Check if merchant can use a feature based on usage limits
  */
-export const checkUsageLimit = async (merchantId: string, feature: 'PUSH' | 'SCHEDULED_PUSH' | 'CART_RECOVERY') => {
-    const flags = await db.featureFlags.findUnique({ where: { merchantId } });
+export const checkUsageLimit = async (merchantId: string, feature: string, currentUsage?: number) => {
+    const flags = await db.featureFlags.findUnique({
+        where: { merchantId },
+    });
+
     if (!flags) {
-        // Should not happen if flags are ensured, but safe fallback
+        // Create default flags if they don't exist
         await syncFeatureFlags(merchantId, PLANS.FREE);
-        return;
+        return checkUsageLimit(merchantId, feature, currentUsage);
     }
 
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let limit = 0;
+    let period = "";
 
-    if (feature === 'PUSH') {
-        const count = await db.usageLog.count({
-            where: {
-                merchantId,
-                feature: 'PUSH',
-                timestamp: { gte: startOfMonth }
+    switch (feature) {
+        case "PUSH":
+            // Monthly limit
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const pushCount = currentUsage ?? await db.usageLog.count({
+                where: {
+                    merchantId,
+                    feature: "PUSH",
+                    timestamp: { gte: startOfMonth },
+                },
+            });
+            limit = flags.maxPushCampaignsPerMonth;
+            period = "month";
+            if (pushCount >= limit) {
+                throw new Error(`Push campaign limit reached (${limit} per ${period}). Upgrade your plan for more campaigns.`);
             }
-        });
-        if (count >= flags.maxPushCampaignsPerMonth) {
-            throw new Error(`Monthly push limit reached (${count}/${flags.maxPushCampaignsPerMonth}). Upgrade to Pro.`);
-        }
-    } else if (feature === 'SCHEDULED_PUSH') {
-        // Count active scheduled jobs or just logs of scheduled creations?
-        // Spec says UsageLog. Let's count usage logs for creation this month.
-        const count = await db.usageLog.count({
-            where: {
-                merchantId,
-                feature: 'SCHEDULED_PUSH',
-                timestamp: { gte: startOfMonth }
+            break;
+
+        case "CART_RECOVERY":
+            // Daily limit
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const recoveryCount = currentUsage ?? await db.usageLog.count({
+                where: {
+                    merchantId,
+                    feature: "CART_RECOVERY",
+                    timestamp: { gte: startOfDay },
+                },
+            });
+            limit = flags.maxCartRecoveriesPerDay;
+            period = "day";
+            if (recoveryCount >= limit) {
+                throw new Error(`Cart recovery limit reached (${limit} per ${period}). Upgrade your plan for more recoveries.`);
             }
-        });
-        if (count >= flags.maxScheduledCampaigns) {
-            throw new Error(`Monthly scheduled campaign limit reached (${count}/${flags.maxScheduledCampaigns}). Upgrade to Pro.`);
-        }
-    } else if (feature === 'CART_RECOVERY') {
-        const count = await db.usageLog.count({
-            where: {
-                merchantId,
-                feature: 'CART_RECOVERY',
-                timestamp: { gte: startOfDay }
+            break;
+
+        case "PRODUCT_HIGHLIGHT":
+            // Monthly limit
+            const startOfHighlightMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const highlightCount = currentUsage ?? await db.productHighlight.count({
+                where: {
+                    merchantId,
+                    createdAt: { gte: startOfHighlightMonth },
+                },
+            });
+            limit = flags.maxProductHighlights;
+            period = "month";
+            if (highlightCount >= limit) {
+                throw new Error(`Product highlight limit reached (${limit} per ${period}). Upgrade to Pro for more highlights.`);
             }
-        });
-        if (count >= flags.maxCartRecoveriesPerDay) {
-            // For automated jobs, we return false or throw. 
-            // Throwing might just log an error in the job queue.
-            throw new Error(`Daily cart recovery limit reached (${count}/${flags.maxCartRecoveriesPerDay}).`);
-        }
+            break;
+
+        case "SCHEDULED_PUSH":
+            // Monthly limit for scheduled campaigns
+            const startOfScheduledMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const scheduledCount = currentUsage ?? await db.usageLog.count({
+                where: {
+                    merchantId,
+                    feature: "SCHEDULED_PUSH",
+                    timestamp: { gte: startOfScheduledMonth },
+                },
+            });
+            limit = flags.maxScheduledCampaigns;
+            period = "month";
+            if (scheduledCount >= limit) {
+                throw new Error(`Scheduled campaign limit reached (${limit} per ${period}). Upgrade your plan for more campaigns.`);
+            }
+            break;
+
+        default:
+            throw new Error(`Unknown feature: ${feature}`);
     }
 };
 
 /**
- * Logs usage of a feature.
+ * Log usage for billing tracking
  */
-export const logUsage = async (merchantId: string, feature: 'PUSH' | 'SCHEDULED_PUSH' | 'CART_RECOVERY') => {
+export const logUsage = async (merchantId: string, feature: string) => {
     await db.usageLog.create({
         data: {
             merchantId,
-            feature
-        }
+            feature,
+        },
     });
 };

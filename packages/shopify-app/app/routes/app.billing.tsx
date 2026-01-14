@@ -29,13 +29,14 @@ export const loader = async ({ request }: any) => {
         }
     });
 
-    if (!merchant) return { plan: PLANS.FREE, merchantId: null, usage: { push: 0, scheduled: 0, recovery: 0 } };
+    if (!merchant) return { plan: PLANS.FREE, merchantId: null, usage: { push: 0, scheduled: 0, recovery: 0, highlights: 0 } };
 
     // Calculate usage
     const usage = {
         push: merchant.usageLogs.filter(l => l.feature === 'PUSH').length,
         scheduled: merchant.usageLogs.filter(l => l.feature === 'SCHEDULED_PUSH').length,
         recovery: merchant.usageLogs.filter(l => l.feature === 'CART_RECOVERY').length,
+        highlights: merchant.usageLogs.filter(l => l.feature === 'PRODUCT_HIGHLIGHT').length,
     };
 
     return {
@@ -64,7 +65,7 @@ export const action = async ({ request }: any) => {
         await billing.request({
             plan: plan as string,
             isTest: true, // Always test for dev
-            returnUrl: `https://${session.shop}/admin/apps/${process.env.SHOPIFY_API_KEY}/app/billing`, // Return to here
+            returnUrl: `${process.env.SHOPIFY_APP_URL}/app/billing`, // Return to here
         });
 
         // billing.request will THROW a Redirect. Code below is unreachable if successful.
@@ -100,6 +101,10 @@ export default function BillingPage() {
                                 <s-text tone="subdued">Cart Recovery</s-text>
                                 <s-text variant="headingLg">{usage.recovery} used</s-text>
                             </s-stack>
+                            <s-stack direction="block" gap="025">
+                                <s-text tone="subdued">Product Highlights</s-text>
+                                <s-text variant="headingLg">{usage.highlights} used</s-text>
+                            </s-stack>
                         </s-stack>
                     </s-box>
                 </s-section>
@@ -116,6 +121,7 @@ export default function BillingPage() {
                                     <s-list-item>20 Push Campaigns/mo</s-list-item>
                                     <s-list-item>2 Scheduled/mo</s-list-item>
                                     <s-list-item>5 Recoveries/day</s-list-item>
+                                    <s-list-item>20 Product Highlights/mo</s-list-item>
                                 </s-list>
                                 {isCurrent(PLANS.FREE) ? (
                                     <s-button disabled>Current Plan</s-button>
@@ -134,6 +140,7 @@ export default function BillingPage() {
                                     <s-list-item>200 Push Campaigns/mo</s-list-item>
                                     <s-list-item>20 Scheduled/mo</s-list-item>
                                     <s-list-item>50 Recoveries/day</s-list-item>
+                                    <s-list-item>100 Product Highlights/mo</s-list-item>
                                     <s-list-item>Priority Support</s-list-item>
                                 </s-list>
                                 {isCurrent(PLANS.PRO) ? (
@@ -156,6 +163,7 @@ export default function BillingPage() {
                                     <s-list-item>Unlimited Push</s-list-item>
                                     <s-list-item>Unlimited Scheduled</s-list-item>
                                     <s-list-item>Unlimited Recovery</s-list-item>
+                                    <s-list-item>Unlimited Product Highlights</s-list-item>
                                     <s-list-item>AI Features</s-list-item>
                                 </s-list>
                                 {isCurrent(PLANS.ENTERPRISE) ? (

@@ -1,0 +1,37 @@
+// Production database schema with indexes and optimizations
+// This extends the base schema with production-specific optimizations
+
+// Add indexes for performance
+// Run: npx prisma db push --schema=prisma/schema.production.prisma
+
+// Merchant indexes
+@@index([shop], map: "idx_merchant_shop")
+@@index([installedAt], map: "idx_merchant_installed_at")
+
+// CustomerProfile indexes  
+@@index([merchantId, shopifyCustomerId], map: "idx_customer_merchant_shopify")
+@@index([merchantId, email], map: "idx_customer_merchant_email")
+@@index([lastSeenAt], map: "idx_customer_last_seen")
+
+// PushToken indexes
+@@index([merchantId, shopifyCustomerId], map: "idx_push_token_customer")
+@@index([lastActiveAt], map: "idx_push_token_active")
+@@index([platform], map: "idx_push_token_platform")
+
+// EventLog indexes
+@@index([merchantId, type], map: "idx_event_merchant_type")
+@@index([shopifyCustomerId], map: "idx_event_customer")
+@@index([createdAt], map: "idx_event_created")
+
+// AutomationJob indexes
+@@index([merchantId, status], map: "idx_automation_job_status")
+@@index([scheduledFor], map: "idx_automation_job_scheduled")
+@@index([shopifyCustomerId], map: "idx_automation_job_customer")
+
+// UsageLog indexes
+@@index([merchantId, feature], map: "idx_usage_merchant_feature")
+@@index([timestamp], map: "idx_usage_timestamp")
+
+// Job indexes
+@@index([merchantId, status], map: "idx_job_status")
+@@index([scheduledAt], map: "idx_job_scheduled")

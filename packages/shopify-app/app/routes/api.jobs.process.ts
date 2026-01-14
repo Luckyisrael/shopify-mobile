@@ -1,25 +1,68 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { mobileJson, handleMobileError } from "../services/mobile.server";
 import { processAutomationJobs } from "../services/automation-v2.server";
+import { rateLimit } from "../middleware/security.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-    // Basic security: In production, verify a secret token header or ensuring it's an internal call
-    // For this MVP, we will simpler allow it to be hit.
-
-    // We can allow GET to just check status or run.
-    const count = await processAutomationJobs();
-    return Response.json({ success: true, processed: count });
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-    if (request.method !== "POST") {
-        return Response.json({ error: "Method not allowed" }, { status: 405 });
+    // Security: Check for internal processing token
+    const authHeader = request.headers.get("Authorization");
+    const expectedToken = process.env.JOB_PROCESSING_TOKEN;
+    
+    if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+        return mobileJson({ error: "Unauthorized" }, 401);
+    }
+    
+    // Rate limiting
+    const clientIP = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = rateLimit(`job-process:${clientIP}`, 10, 60000); // 10 requests per minute
+    
+    if (!rateLimitResult.allowed) {
+        return mobileJson({ error: "Rate limit exceeded" }, 429);
     }
 
     try {
         const count = await processAutomationJobs();
-        return Response.json({ success: true, processed: count });
+        return mobileJson({ 
+            success: true, 
+            processed: count,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error("[Job Processing] Error:", error);
+        return handleMobileError(error);
+    }
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+    if (request.method !== "POST") {
+        return mobileJson({ error: "Method not allowed" }, 405);
+    }
+
+    // Security: Check for internal processing token
+    const authHeader = request.headers.get("Authorization");
+    const expectedToken = process.env.JOB_PROCESSING_TOKEN;
+    
+    if (expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+        return mobileJson({ error: "Unauthorized" }, 401);
+    }
+
+    // Rate limiting
+    const clientIP = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = rateLimit(`job-process:${clientIP}`, 5, 60000); // 5 requests per minute
+    
+    if (!rateLimitResult.allowed) {
+        return mobileJson({ error: "Rate limit exceeded" }, 429);
+    }
+
+    try {
+        const count = await processAutomationJobs();
+        return mobileJson({ 
+            success: true, 
+            processed: count,
+            timestamp: new Date().toISOString()
+        });
     } catch (error: any) {
         console.error("Job Processing Failed:", error);
-        return Response.json({ error: error.message }, { status: 500 });
+        return handleMobileError(error);
     }
 };

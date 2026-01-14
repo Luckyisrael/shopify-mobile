@@ -1,4 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
+import { mobileJson, handleMobileError } from "../services/mobile.server";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 import { logEventV2, EVENT_TYPES, sendCustomerPush } from "../services/automation-v2.server";
@@ -6,7 +7,7 @@ import { checkUsageLimit, logUsage } from "../services/billing.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
     if (request.method !== "POST") {
-        return Response.json({ error: "Method not allowed" }, { status: 405 });
+        return mobileJson({ error: "Method not allowed" }, 405);
     }
 
     try {
@@ -16,12 +17,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const { title, body: messageBody, audience = "all" } = body;
 
         if (!title || !messageBody) {
-            return Response.json({ error: "Title and body are required" }, { status: 400 });
+            return mobileJson({ error: "Title and body are required" }, 400);
         }
 
         const merchant = await db.merchant.findUnique({ where: { shop: session.shop } });
         if (!merchant) {
-            return Response.json({ error: "Merchant not found" }, { status: 404 });
+            return mobileJson({ error: "Merchant not found" }, 404);
         }
 
         // Check usage limits
@@ -62,7 +63,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
                     immediate: true,
                 });
 
-                return Response.json({
+                return mobileJson({
                     success: true,
                     message: "Push notification sent to all devices",
                     result,
@@ -93,7 +94,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             successful: successCount,
         });
 
-        return Response.json({
+        return mobileJson({
             success: true,
             message: `Push notification sent to ${successCount}/${totalTargeted} customers`,
             targeted: totalTargeted,
@@ -102,6 +103,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     } catch (error: any) {
         console.error("Manual push failed:", error);
-        return Response.json({ error: error.message }, { status: 500 });
+        return handleMobileError(error);
     }
 };

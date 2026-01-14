@@ -53,6 +53,15 @@ model Merchant {
   customerSessions CustomerSession[]
   automationRules AutomationRule[]
   automationJobs  AutomationJob[]
+  productHighlights ProductHighlight[]
+  
+  // Engagement Enhancement Relations
+  pushCampaigns   PushCampaign[]
+  abTests         ABTest[]
+  notificationMetrics NotificationMetric[]
+  customerPreferences CustomerPreferences[]
+  sendTimeProfiles SendTimeProfile[]
+  reengagementCampaigns ReengagementCampaign[]
 }
 
 model CustomerProfile {
@@ -164,6 +173,7 @@ model FeatureFlags {
   maxPushCampaignsPerMonth Int      @default(20)
   maxScheduledCampaigns    Int      @default(2)
   maxCartRecoveriesPerDay  Int      @default(5)
+  maxProductHighlights     Int      @default(20) // Free tier limit
   
   // Toggles
   schedulingEnabled        Boolean  @default(true)
@@ -199,4 +209,228 @@ model MobileApp {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model ProductHighlight {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifyProductId  String
+  title             String
+  description       String?
+  imageUrl          String?
+  productUrl        String?
+  ctaText           String   @default("Shop Now")
+  isActive          Boolean  @default(true)
+  expiresAt         DateTime // 48 hours from creation
+  viewCount         Int      @default(0)
+  clickCount        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([merchantId, isActive, expiresAt])
+  @@index([expiresAt])
+}
+
+// ============================================================================
+// ENGAGEMENT ENHANCEMENTS - New Models
+// ============================================================================
+
+// Push Campaign Model - Tracks all push notifications sent
+model PushCampaign {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Campaign Details
+  title             String
+  body              String
+  imageUrl          String?  // For rich push
+  actionButtons     String?  // JSON array of buttons
+  deepLink          String?  // Deep link URL
+  
+  // Targeting
+  audience          String   // "all", "logged_in", "cart_owners", "segment"
+  segmentId         String?  // For future segmentation
+  
+  // Scheduling
+  scheduledFor      DateTime?
+  sentAt            DateTime?
+  status            String   @default("DRAFT") // DRAFT, SCHEDULED, SENDING, SENT, FAILED
+  
+  // A/B Testing
+  isABTest          Boolean  @default(false)
+  abTestId          String?
+  abTest            ABTest?  @relation(fields: [abTestId], references: [id])
+  variant           String?  // "A" or "B"
+  
+  // Metrics
+  targetedCount     Int      @default(0)
+  sentCount         Int      @default(0)
+  deliveredCount    Int      @default(0)
+  openedCount       Int      @default(0)
+  clickedCount      Int      @default(0)
+  convertedCount    Int      @default(0)
+  revenueGenerated  Float    @default(0)
+  
+  // Metadata
+  createdBy         String?  // Admin user
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  metrics           NotificationMetric[]
+  
+  @@index([merchantId, status, sentAt])
+  @@index([merchantId, isABTest, abTestId])
+}
+
+// A/B Test Model
+model ABTest {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Test Configuration
+  name              String
+  status            String   @default("RUNNING") // RUNNING, COMPLETED, CANCELLED
+  
+  // Variants
+  variantATitle     String
+  variantABody      String
+  variantBTitle     String
+  variantBBody      String
+  
+  // Results
+  variantASent      Int      @default(0)
+  variantAOpened    Int      @default(0)
+  variantAClicked   Int      @default(0)
+  variantAConverted Int      @default(0)
+  
+  variantBSent      Int      @default(0)
+  variantBOpened    Int      @default(0)
+  variantBClicked   Int      @default(0)
+  variantBConverted Int      @default(0)
+  
+  // Winner
+  winner            String?  // "A", "B", or null
+  winnerDeclaredAt  DateTime?
+  confidenceLevel   Float?   // Statistical confidence (0-1)
+  
+  // Metadata
+  startedAt         DateTime @default(now())
+  completedAt       DateTime?
+  
+  // Relations
+  campaigns         PushCampaign[]
+  
+  @@index([merchantId, status])
+}
+
+// Notification Metrics - Detailed tracking per customer
+model NotificationMetric {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  campaignId        String
+  campaign          PushCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Customer
+  shopifyCustomerId String?
+  pushTokenId       String?
+  
+  // Events
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  convertedAt       DateTime?
+  
+  // Action Button Tracking
+  buttonClicked     String?  // Which button was clicked
+  
+  // Conversion Tracking
+  orderValue        Float?
+  orderId           String?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([merchantId, campaignId])
+  @@index([shopifyCustomerId])
+}
+
+// Customer Notification Preferences
+model CustomerPreferences {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifyCustomerId String
+  
+  // Category Preferences
+  cartNotifications      Boolean @default(true)
+  orderNotifications     Boolean @default(true)
+  promotionalNotifications Boolean @default(true)
+  highlightNotifications Boolean @default(true)
+  
+  // Quiet Hours
+  quietHoursEnabled Boolean @default(false)
+  quietHoursStart   String? // "22:00"
+  quietHoursEnd     String? // "08:00"
+  
+  // Frequency
+  maxDailyNotifications Int? @default(5)
+  
+  // Metadata
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([merchantId, shopifyCustomerId])
+  @@index([merchantId])
+}
+
+// Send Time Optimization Profile
+model SendTimeProfile {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  shopifyCustomerId String
+  
+  // Activity Tracking (hour of day: 0-23)
+  hourlyActivity    String   // JSON: {0: 5, 1: 2, 8: 15, ...}
+  
+  // Calculated Optimal Time
+  optimalHour       Int?     // 0-23
+  timezone          String?  // IANA timezone
+  
+  // Metadata
+  dataPoints        Int      @default(0) // Number of app opens tracked
+  lastCalculated    DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([merchantId, shopifyCustomerId])
+  @@index([merchantId])
+}
+
+// Re-engagement Campaign Tracking
+model ReengagementCampaign {
+  id                String   @id @default(uuid())
+  merchantId        String
+  merchant          Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  
+  // Configuration
+  tier              String   // "7_DAY", "14_DAY", "30_DAY"
+  title             String
+  body              String
+  isActive          Boolean  @default(true)
+  
+  // Metrics
+  triggered         Int      @default(0)
+  sent              Int      @default(0)
+  reengaged         Int      @default(0) // Customers who opened app after
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([merchantId, isActive])
 }

@@ -1,3 +1,94 @@
+/**
+ * @swagger
+ * /api/mobile/cart:
+ *   post:
+ *     summary: Create Shopping Cart
+ *     description: Create a new shopping cart with product variants via Shopify Storefront API
+ *     tags: [Cart]
+ *     security:
+ *       - ShopDomain: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - variantId
+ *               - quantity
+ *             properties:
+ *               variantId:
+ *                 type: string
+ *                 description: Shopify product variant ID
+ *                 example: "gid://shopify/ProductVariant/123456789"
+ *               quantity:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Quantity of items to add to cart
+ *                 example: 2
+ *               customerAccessToken:
+ *                 type: string
+ *                 description: Optional customer access token to associate cart with customer
+ *                 example: "c7a4b2e8f9d1a3b5c6e7f8g9h0i1j2k3"
+ *     responses:
+ *       201:
+ *         description: Cart created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 cartId:
+ *                   type: string
+ *                   description: Unique cart identifier
+ *                   example: "gid://shopify/Cart/Z2lkOi8vc2hvcGlmeS9DYXJ0LzEyMzQ1Njc4OTA"
+ *                 checkoutUrl:
+ *                   type: string
+ *                   format: uri
+ *                   description: URL to complete checkout
+ *                   example: "https://shop.myshopify.com/cart/c/Z2lkOi8vc2hvcGlmeS9DYXJ0LzEyMzQ1Njc4OTA"
+ *                 quantity:
+ *                   type: integer
+ *                   description: Total quantity of items in cart
+ *                   example: 2
+ *       400:
+ *         description: Missing required fields
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       405:
+ *         description: Method not allowed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       422:
+ *         description: Cart creation failed (e.g., out of stock, invalid variant)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Cart creation failed"
+ *                 details:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       field:
+ *                         type: string
+ *                       message:
+ *                         type: string
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 
 import type { ActionFunctionArgs } from "react-router";
 import { getStorefrontClient, handleMobileError, mobileJson, requireMerchant, MobileAuthError } from "../services/mobile.server";

@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://shopify:password@db:5432/shopify_mobile
+      - SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+      - SHOPIFY_API_SECRET=${SHOPIFY_API_SECRET}
+      - SHOPIFY_APP_URL=${SHOPIFY_APP_URL}
+      - JOB_PROCESSING_TOKEN=${JOB_PROCESSING_TOKEN}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=shopify_mobile
+      - POSTGRES_USER=shopify
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shopify"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Job processor (cron-like service)
+  job-processor:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://shopify:password@db:5432/shopify_mobile
+      - JOB_PROCESSING_TOKEN=${JOB_PROCESSING_TOKEN}
+    depends_on:
+      - db
+      - app
+    restart: unless-stopped
+    command: >
+      sh -c "
+        while true; do
+          sleep 300
+          curl -H 'Authorization: Bearer ${JOB_PROCESSING_TOKEN}' \
+               -X POST http://app:3000/api/jobs/process || true
+        done
+      "
+
+volumes:
+  postgres_data:

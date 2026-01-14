@@ -1,4 +1,67 @@
+/**
+ * @swagger
+ * /api/mobile/push/register:
+ *   post:
+ *     summary: Register Push Token
+ *     description: Register a device token for push notifications
+ *     tags: [Push Notifications]
+ *     security:
+ *       - ShopDomain: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - deviceToken
+ *               - platform
+ *             properties:
+ *               deviceToken:
+ *                 type: string
+ *                 description: Expo push token for the device
+ *                 example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+ *               platform:
+ *                 type: string
+ *                 enum: [ios, android]
+ *                 description: Device platform
+ *                 example: "ios"
+ *               shopifyCustomerId:
+ *                 type: string
+ *                 description: Optional customer ID to link token to specific customer
+ *                 example: "gid://shopify/Customer/123456789"
+ *     responses:
+ *       200:
+ *         description: Device token registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: Missing required fields or invalid X-Shop-Domain header
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       405:
+ *         description: Method not allowed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 import type { ActionFunctionArgs } from "react-router";
+import { mobileJson, handleMobileError } from "../services/mobile.server";
 import { registerDevice } from "app/services/push.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -14,15 +77,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     if (request.method !== "POST") {
-        return Response.json({ error: "Method not allowed" }, { status: 405 });
+        return mobileJson({ error: "Method not allowed" }, 405);
     }
 
     const shopDomain = request.headers.get("X-Shop-Domain");
     if (!shopDomain) {
-        return Response.json({ error: "Missing X-Shop-Domain header" }, {
-            status: 400,
-            headers: { "Access-Control-Allow-Origin": "*" }
-        });
+        return mobileJson({ error: "Missing X-Shop-Domain header" }, 400);
     }
 
     try {
@@ -30,22 +90,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         const { deviceToken, platform } = body;
 
         if (!deviceToken || !platform) {
-            return Response.json({ error: "Missing deviceToken or platform" }, {
-                status: 400,
-                headers: { "Access-Control-Allow-Origin": "*" }
-            });
+            return mobileJson({ error: "Missing deviceToken or platform" }, 400);
         }
 
         await registerDevice(shopDomain, deviceToken, platform);
 
-        return Response.json({ success: true }, {
-            headers: { "Access-Control-Allow-Origin": "*" }
-        });
+        return mobileJson({ success: true });
     } catch (error: any) {
         console.error("Registration failed:", error);
-        return Response.json({ error: error.message || "Internal Server Error" }, {
-            status: 500,
-            headers: { "Access-Control-Allow-Origin": "*" }
-        });
+        return handleMobileError(error);
     }
 };

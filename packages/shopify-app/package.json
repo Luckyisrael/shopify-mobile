@@ -20,7 +20,8 @@
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "typecheck": "react-router typegen && tsc --noEmit",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "echo \"No tests yet\" && exit 0",
+    "db:optimize": "tsx scripts/optimize-database.ts"
   },
   "type": "module",
   "engines": {

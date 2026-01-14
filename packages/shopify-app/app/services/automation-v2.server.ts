@@ -1,6 +1,18 @@
 import db from "../db.server";
 import { sendPushNotification } from "./push.server";
 import { checkUsageLimit, logUsage, PLANS, syncFeatureFlags } from "./billing.server";
+import { cleanupExpiredHighlights } from "./product-highlights.server";
+import {
+    handleCartUpdated,
+    handleCartAbandoned,
+    handleOrderCreated,
+    handleOrderFulfilled,
+    handlePushRequested,
+    handleProductViewed,
+    handleCustomerRegistered,
+    handleAppOpened,
+    handleSearchPerformed
+} from "./event-handlers.server";
 
 // Automation Types
 export const AUTOMATION_TYPES = {
@@ -27,6 +39,10 @@ export const EVENT_TYPES = {
     ORDER_CREATED: "ORDER_CREATED",
     ORDER_FULFILLED: "ORDER_FULFILLED",
     PUSH_REQUESTED: "PUSH_REQUESTED",
+    PRODUCT_VIEWED: "PRODUCT_VIEWED",
+    CUSTOMER_REGISTERED: "CUSTOMER_REGISTERED",
+    APP_OPENED: "APP_OPENED",
+    SEARCH_PERFORMED: "SEARCH_PERFORMED",
 } as const;
 
 // Queue Types
@@ -55,7 +71,40 @@ export const logEventV2 = async (
             },
         });
 
-        // 2. Trigger automation evaluation
+        // 2. Call specific event handler
+        switch (type) {
+            case EVENT_TYPES.CART_UPDATED:
+                await handleCartUpdated(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.CART_ABANDONED:
+                await handleCartAbandoned(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.ORDER_CREATED:
+                await handleOrderCreated(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.ORDER_FULFILLED:
+                await handleOrderFulfilled(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.PUSH_REQUESTED:
+                await handlePushRequested(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.PRODUCT_VIEWED:
+                await handleProductViewed(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.CUSTOMER_REGISTERED:
+                await handleCustomerRegistered(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.APP_OPENED:
+                await handleAppOpened(merchantId, payload, shopifyCustomerId);
+                break;
+            case EVENT_TYPES.SEARCH_PERFORMED:
+                await handleSearchPerformed(merchantId, payload, shopifyCustomerId);
+                break;
+            default:
+                console.log(`[EventLogV2] No handler for event type: ${type}`);
+        }
+
+        // 3. Trigger automation evaluation (for backward compatibility)
         await evaluateAutomations(merchantId, type, payload, shopifyCustomerId);
 
     } catch (error) {
@@ -253,9 +302,93 @@ export const resolveAudience = async (
 };
 
 /**
+ * Creates a scheduled push campaign with optimal send time
+ * Each customer receives the notification at their optimal time
+ */
+export const createOptimalTimeCampaign = async (
+    merchantId: string,
+    title: string,
+    body: string,
+    audience: "all" | "logged_in" | "cart_owners" = "all"
+) => {
+    // Check feature flags and limits
+    const flags = await db.featureFlags.findUnique({ where: { merchantId } });
+    if (!flags?.schedulingEnabled) {
+        throw new Error("Scheduled campaigns are disabled");
+    }
+
+    await checkUsageLimit(merchantId, 'SCHEDULED_PUSH');
+
+    // Create automation rule
+    const rule = await db.automationRule.create({
+        data: {
+            merchantId,
+            type: AUTOMATION_TYPES.SCHEDULED_PUSH,
+            status: AUTOMATION_STATUS.ACTIVE,
+            config: JSON.stringify({
+                title,
+                body,
+                audience,
+                useOptimalTime: true,
+            }),
+        },
+    });
+
+    // Resolve audience
+    const customers = await resolveAudience(merchantId, audience);
+    
+    // Import send time optimizer
+    const { getOptimalSendTime } = await import("./send-time-optimizer.server");
+    
+    // Create jobs with optimal send times for each customer
+    let jobsCreated = 0;
+    for (const customer of customers) {
+        try {
+            const optimalHour = await getOptimalSendTime(merchantId, customer.shopifyCustomerId);
+            
+            // Calculate next occurrence of optimal hour
+            const now = new Date();
+            const scheduledFor = new Date(now);
+            scheduledFor.setHours(optimalHour, 0, 0, 0);
+            
+            // If optimal hour has passed today, schedule for tomorrow
+            if (scheduledFor <= now) {
+                scheduledFor.setDate(scheduledFor.getDate() + 1);
+            }
+
+            await db.automationJob.create({
+                data: {
+                    merchantId,
+                    ruleId: rule.id,
+                    shopifyCustomerId: customer.shopifyCustomerId,
+                    status: JOB_STATUS.QUEUED,
+                    scheduledFor,
+                },
+            });
+            
+            jobsCreated++;
+        } catch (error) {
+            console.error(`[OptimalTime] Failed to schedule for customer ${customer.shopifyCustomerId}:`, error);
+            // Continue with other customers
+        }
+    }
+
+    await logUsage(merchantId, 'SCHEDULED_PUSH');
+    
+    console.log(`[OptimalTime] Created campaign with ${jobsCreated} jobs scheduled at optimal times`);
+    
+    return { ruleId: rule.id, jobsCreated };
+};
+
+/**
  * Processes automation jobs with priority queue support
  */
 export const processAutomationJobs = async () => {
+    console.log("[Job Processing] Starting automation job processing...");
+    
+    // Clean up expired highlights first
+    await cleanupExpiredHighlights();
+    
     const now = new Date();
 
     // Process priority queue first (Pro/Enterprise)
@@ -263,6 +396,8 @@ export const processAutomationJobs = async () => {
     
     // Then standard queue
     await processJobQueue("standard", now);
+    
+    console.log("[Job Processing] Completed automation job processing");
 };
 
 /**

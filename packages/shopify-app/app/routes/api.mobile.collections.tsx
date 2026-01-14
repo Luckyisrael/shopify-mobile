@@ -1,4 +1,62 @@
 
+/**
+ * @swagger
+ * /api/mobile/collections:
+ *   get:
+ *     summary: Get Collections
+ *     description: Fetch product collections from Shopify Storefront API
+ *     tags: [Products]
+ *     security:
+ *       - ShopDomain: []
+ *     parameters:
+ *       - in: query
+ *         name: first
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 250
+ *           default: 20
+ *         description: Number of collections to fetch
+ *         example: 20
+ *       - in: query
+ *         name: after
+ *         schema:
+ *           type: string
+ *         description: Cursor for pagination
+ *         example: "eyJsYXN0X2lkIjoxMjM0NTY3ODkwfQ=="
+ *     responses:
+ *       200:
+ *         description: Collections retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 collections:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Collection'
+ *                 pageInfo:
+ *                   type: object
+ *                   properties:
+ *                     hasNextPage:
+ *                       type: boolean
+ *                     hasPreviousPage:
+ *                       type: boolean
+ *                     endCursor:
+ *                       type: string
+ *                     startCursor:
+ *                       type: string
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 import type { LoaderFunctionArgs } from "react-router";
 import { getStorefrontClient, handleMobileError, mobileJson, requireMerchant } from "../services/mobile.server";
 

@@ -26,15 +26,23 @@ const shopify = shopifyApp({
   },
   billing: {
     [PLANS.PRO]: {
-      amount: PLAN_CONFIGS[PLANS.PRO].amount,
-      currencyCode: PLAN_CONFIGS[PLANS.PRO].currencyCode,
-      interval: PLAN_CONFIGS[PLANS.PRO].interval,
+      lineItems: [
+        {
+          amount: PLAN_CONFIGS[PLANS.PRO].amount,
+          currencyCode: PLAN_CONFIGS[PLANS.PRO].currencyCode,
+          interval: PLAN_CONFIGS[PLANS.PRO].interval,
+        }
+      ],
       replacementBehavior: BillingReplacementBehavior.ApplyImmediately,
     },
     [PLANS.ENTERPRISE]: {
-      amount: PLAN_CONFIGS[PLANS.ENTERPRISE].amount,
-      currencyCode: PLAN_CONFIGS[PLANS.ENTERPRISE].currencyCode,
-      interval: PLAN_CONFIGS[PLANS.ENTERPRISE].interval,
+      lineItems: [
+        {
+          amount: PLAN_CONFIGS[PLANS.ENTERPRISE].amount,
+          currencyCode: PLAN_CONFIGS[PLANS.ENTERPRISE].currencyCode,
+          interval: PLAN_CONFIGS[PLANS.ENTERPRISE].interval,
+        }
+      ],
       replacementBehavior: BillingReplacementBehavior.ApplyImmediately,
     }
   },
