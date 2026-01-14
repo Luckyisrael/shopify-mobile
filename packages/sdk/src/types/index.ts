@@ -1,9 +1,14 @@
 // Core types for the SDK
+import type { StorageAdapter, SecureStorageAdapter } from '../storage/interfaces';
+
 export interface ShopifyMobileClientConfig {
   baseUrl: string;
   shopDomain: string;
+  storage: StorageAdapter;
+  secureStorage: SecureStorageAdapter;
   timeout?: number;
   retries?: number;
+  debug?: boolean;
   onError?: (error: any) => void;
 }
 
@@ -106,4 +111,34 @@ export interface TrackEventRequest {
 export interface ProductsListRequest {
   cursor?: string;
   limit?: number;
+}
+
+// Highlights types
+export interface Highlight {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl: string;
+  deepLink?: string;
+  priority: number;
+  startDate: string;
+  endDate?: string;
+}
+
+// Preferences types
+export interface UserPreferences {
+  notifications: {
+    push: boolean;
+    email: boolean;
+    sms: boolean;
+  };
+  marketing: {
+    emailMarketing: boolean;
+    smsMarketing: boolean;
+  };
+  privacy: {
+    dataCollection: boolean;
+    personalization: boolean;
+  };
+  [key: string]: any;
 }
